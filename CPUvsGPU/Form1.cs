@@ -1,7 +1,13 @@
 using AForge.Video;
 using AForge.Video.DirectShow;
 using CPUvsGPU.Models;
+using ILGPU;
+using ILGPU.Runtime;
+using ILGPU.Runtime.CPU;
+using ILGPU.Runtime.Cuda;
+using ILGPU.Runtime.OpenCL;
 using System.Diagnostics;
+using System.Drawing.Imaging;
 
 namespace CPUvsGPU
 {
@@ -9,7 +15,12 @@ namespace CPUvsGPU
     {
         private List<Camera> cameras = new List<Camera>();
         private Camera selectedCamera = null;
-        private VideoCaptureDevice videoSource;
+        private VideoCaptureDevice videoSource = null;
+
+        Context context = Context.CreateDefault();
+        private List<ProcessingUnit> processingUnits = new List<ProcessingUnit>();
+        private ProcessingUnit selectedProcessingUnit = null;
+        private Accelerator accelerator = null;
 
         private Stopwatch stopwatch = new Stopwatch();
         private int frameCount = 0;
@@ -21,10 +32,17 @@ namespace CPUvsGPU
 
         private void Form1_Load(object sender, EventArgs e)
         {
-            GetCameras();
-            GetAccelerators();
+            try
+            {
+                GetCameras();
+                GetAccelerators();
 
-            InitializeForm();
+                InitializeForm();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+            }
         }
 
         private void GetCameras()
@@ -43,21 +61,37 @@ namespace CPUvsGPU
 
         private void GetAccelerators()
         {
-
+            foreach (var device in context)
+            {
+                processingUnits.Add(new ProcessingUnit()
+                {
+                    Name = device.Name,
+                    Type = device.AcceleratorType,
+                    Index = 0 // todo fetch correct index
+                });
+            }
         }
 
         private void InitializeForm()
         {
             comboBoxCamera.Items.Clear();
-
             foreach (var camera in cameras)
             {
                 comboBoxCamera.Items.Add(camera.Name);
             }
-
-            if(comboBoxCamera.Items.Count > 0)
+            if (comboBoxCamera.Items.Count > 0)
             {
                 comboBoxCamera.SelectedIndex = 0;
+            }
+
+            comboBoxAccelerator.Items.Clear();
+            foreach (var processingUnit in processingUnits)
+            {
+                comboBoxAccelerator.Items.Add(processingUnit.Name);
+            }
+            if (comboBoxAccelerator.Items.Count > 0)
+            {
+                comboBoxAccelerator.SelectedIndex = 0;
             }
         }
 
@@ -68,6 +102,32 @@ namespace CPUvsGPU
                 selectedCamera = cameras[comboBoxCamera.SelectedIndex];
 
                 StartVideoSource();
+            }
+        }
+
+        private void comboBoxAccelerator_SelectedIndexChanged(object sender, EventArgs e)
+        {
+            if (comboBoxAccelerator.SelectedItem != null && selectedProcessingUnit != processingUnits[comboBoxAccelerator.SelectedIndex])
+            {
+                selectedProcessingUnit = processingUnits[comboBoxAccelerator.SelectedIndex];
+
+                if(accelerator != null)
+                {
+                    accelerator.Dispose();
+                }
+
+                switch (selectedProcessingUnit.Type)
+                {
+                    case AcceleratorType.CPU:
+                        accelerator = context.CreateCPUAccelerator(selectedProcessingUnit.Index);
+                        break;
+                    case AcceleratorType.Cuda:
+                        accelerator = context.CreateCudaAccelerator(selectedProcessingUnit.Index);
+                        break;
+                    case AcceleratorType.OpenCL:
+                        accelerator = context.CreateCLAccelerator(selectedProcessingUnit.Index);
+                        break;
+                }
             }
         }
 
@@ -96,11 +156,14 @@ namespace CPUvsGPU
 
         private void VideoSource_NewFrame(object sender, NewFrameEventArgs eventArgs)
         {
-            Bitmap frame = (Bitmap)eventArgs.Frame.Clone();
-            
-            //ProcessFrame(frame);
+            Bitmap bitmap = (Bitmap)eventArgs.Frame.Clone();
 
-            pictureBoxVideoOutput.Image = frame;
+            if (checkBoxFilter.Checked)
+            {
+                //ProcessFrame(bitmap);
+            }
+
+            pictureBoxVideoOutput.Image = bitmap;
 
             frameCount++;
             if (stopwatch.ElapsedMilliseconds >= 1000)
@@ -114,15 +177,15 @@ namespace CPUvsGPU
 
         private void ProcessFrame(Bitmap frame)
         {
-            Parallel.For(0, 2, new ParallelOptions() { MaxDegreeOfParallelism = 16 }, (index) =>
-            {
-                int y = index / frame.Width;
-                int x = index % frame.Width;
-                Color pixelColor = frame.GetPixel(x, y);
-                int grayValue = (int)(pixelColor.R * 0.3 + pixelColor.G * 0.59 + pixelColor.B * 0.11);
-                Color grayColor = Color.FromArgb(grayValue, grayValue, grayValue);
-                frame.SetPixel(x, y, grayColor);
-            });
+            //Parallel.For(0, (frame.Width * frame.Width) - 1, new ParallelOptions() { MaxDegreeOfParallelism = 16 }, (index) =>
+            //{
+            //    int y = index / frame.Width;
+            //    int x = index % frame.Width;
+            //    Color pixelColor = frame.GetPixel(x, y);
+            //    int grayValue = (int)(pixelColor.R * 0.3 + pixelColor.G * 0.59 + pixelColor.B * 0.11);
+            //    Color grayColor = Color.FromArgb(grayValue, grayValue, grayValue);
+            //    frame.SetPixel(x, y, grayColor);
+            //});
 
             //for (int y = 0; y < frame.Height; y++)
             //{
@@ -139,6 +202,8 @@ namespace CPUvsGPU
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
             CloseExistingVideoSource();
+            accelerator?.Dispose();
+            context?.Dispose();
         }
     }
 }

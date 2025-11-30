@@ -74,6 +74,7 @@
             comboBoxAccelerator.Name = "comboBoxAccelerator";
             comboBoxAccelerator.Size = new Size(121, 23);
             comboBoxAccelerator.TabIndex = 3;
+            comboBoxAccelerator.SelectedIndexChanged += comboBoxAccelerator_SelectedIndexChanged;
             // 
             // comboBoxCamera
             // 

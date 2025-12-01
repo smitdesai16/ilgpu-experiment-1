@@ -6,8 +6,12 @@ using ILGPU.Runtime;
 using ILGPU.Runtime.CPU;
 using ILGPU.Runtime.Cuda;
 using ILGPU.Runtime.OpenCL;
+using System;
 using System.Diagnostics;
 using System.Drawing.Imaging;
+using System.Runtime.InteropServices;
+using System.Windows.Forms;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace CPUvsGPU
 {
@@ -128,12 +132,23 @@ namespace CPUvsGPU
                         accelerator = context.CreateCLAccelerator(selectedProcessingUnit.Index);
                         break;
                 }
+
+                textBoxAcceleratorDetails.Text = @$"Accelerator Details
+
+Name: {accelerator.Name}
+
+Type: {accelerator.AcceleratorType}
+
+Memory Size: {accelerator.MemorySize / Math.Pow(1024, 3)}
+
+Max Threads: {accelerator.NumMultiprocessors * accelerator.MaxNumThreadsPerMultiprocessor}
+";
             }
         }
 
         private void StartVideoSource()
         {
-            CloseExistingVideoSource();
+            CloseExistingVideoSource(true);
             if (selectedCamera != null)
             {
                 videoSource = new VideoCaptureDevice(selectedCamera.MonikerString);
@@ -143,36 +158,87 @@ namespace CPUvsGPU
             }
         }
 
-        private void CloseExistingVideoSource()
+        private void CloseExistingVideoSource(bool waitForStop)
         {
             if (videoSource != null && videoSource.IsRunning)
             {
                 videoSource.SignalToStop();
                 videoSource.NewFrame -= VideoSource_NewFrame;
-                videoSource.WaitForStop();
+                if(waitForStop)
+                {
+                    videoSource.WaitForStop();
+                }
                 stopwatch.Stop();
             }
         }
 
         private void VideoSource_NewFrame(object sender, NewFrameEventArgs eventArgs)
         {
-            Bitmap bitmap = (Bitmap)eventArgs.Frame.Clone();
-
-            if (checkBoxFilter.Checked)
+            try
             {
-                //ProcessFrame(bitmap);
+                Bitmap bitmap = (Bitmap)eventArgs.Frame.Clone();
+
+                var oldImage = pictureBoxVideoOutput.Image as IDisposable;
+
+                if (checkBoxFilter.Checked)
+                {
+                    int width = bitmap.Width;
+                    int height = bitmap.Height;
+                    int pixelCount = width * height;
+                    int byteCount = pixelCount * 4;
+
+                    byte[] pixels = new byte[byteCount];
+                    BitmapData bmpData = bitmap.LockBits(new Rectangle(0, 0, width, height), ImageLockMode.ReadWrite, PixelFormat.Format32bppArgb);
+                    Marshal.Copy(bmpData.Scan0, pixels, 0, byteCount);
+
+                    using var devPixels = accelerator.Allocate1D(pixels);
+                    var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<byte>>(KernelInverPixel);
+                    kernel(pixelCount, devPixels.View);
+                    accelerator.Synchronize();
+                    pixels = devPixels.GetAsArray1D();
+
+                    Marshal.Copy(pixels, 0, bmpData.Scan0, byteCount);
+                    bitmap.UnlockBits(bmpData);
+                }
+
+                this.Invoke((MethodInvoker)(() =>
+                {
+                    pictureBoxVideoOutput.Image = bitmap;
+                }));
+
+                oldImage?.Dispose();
+
+                frameCount++;
+                if (stopwatch.ElapsedMilliseconds >= 1000)
+                {
+                    int fps = frameCount;
+                    frameCount = 0;
+                    stopwatch.Restart();
+                    this.Invoke((MethodInvoker)(() =>
+                    {
+                        labelFPS.Text = fps.ToString();
+                    }));
+                }
+                bitmap = null;
             }
-
-            pictureBoxVideoOutput.Image = bitmap;
-
-            frameCount++;
-            if (stopwatch.ElapsedMilliseconds >= 1000)
+            catch (Exception ex)
             {
-                int fps = frameCount;
-                frameCount = 0;
-                stopwatch.Restart();
-                labelFPS.Text = fps.ToString();
             }
+        }
+
+        static void KernelInverPixel(Index1D index, ArrayView<byte> pixel)
+        {
+            int baseIdx = index * 4; // ARGB
+
+            byte a = pixel[baseIdx + 0];
+            byte r = pixel[baseIdx + 1];
+            byte g = pixel[baseIdx + 2];
+            byte b = pixel[baseIdx + 3];
+
+            pixel[baseIdx + 0] = a;
+            pixel[baseIdx + 1] = (byte)(255 - r);
+            pixel[baseIdx + 2] = (byte)(255 - g);
+            pixel[baseIdx + 3] = (byte)(255 - b);
         }
 
         private void ProcessFrame(Bitmap frame)
@@ -201,7 +267,7 @@ namespace CPUvsGPU
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
         {
-            CloseExistingVideoSource();
+            CloseExistingVideoSource(false);
             accelerator?.Dispose();
             context?.Dispose();
         }

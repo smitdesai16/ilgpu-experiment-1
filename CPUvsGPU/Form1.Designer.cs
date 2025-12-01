@@ -37,6 +37,7 @@
             label2 = new Label();
             label3 = new Label();
             checkBoxFilter = new CheckBox();
+            textBoxAcceleratorDetails = new TextBox();
             ((System.ComponentModel.ISupportInitialize)pictureBoxVideoOutput).BeginInit();
             SuspendLayout();
             // 
@@ -52,7 +53,7 @@
             // label0
             // 
             label0.AutoSize = true;
-            label0.Location = new Point(12, 469);
+            label0.Location = new Point(778, 12);
             label0.Name = "label0";
             label0.Size = new Size(29, 15);
             label0.TabIndex = 1;
@@ -61,7 +62,7 @@
             // labelFPS
             // 
             labelFPS.AutoSize = true;
-            labelFPS.Location = new Point(47, 469);
+            labelFPS.Location = new Point(851, 12);
             labelFPS.Name = "labelFPS";
             labelFPS.Size = new Size(25, 15);
             labelFPS.TabIndex = 2;
@@ -70,7 +71,7 @@
             // comboBoxAccelerator
             // 
             comboBoxAccelerator.FormattingEnabled = true;
-            comboBoxAccelerator.Location = new Point(591, 466);
+            comboBoxAccelerator.Location = new Point(851, 65);
             comboBoxAccelerator.Name = "comboBoxAccelerator";
             comboBoxAccelerator.Size = new Size(121, 23);
             comboBoxAccelerator.TabIndex = 3;
@@ -79,7 +80,7 @@
             // comboBoxCamera
             // 
             comboBoxCamera.FormattingEnabled = true;
-            comboBoxCamera.Location = new Point(391, 466);
+            comboBoxCamera.Location = new Point(851, 36);
             comboBoxCamera.Name = "comboBoxCamera";
             comboBoxCamera.Size = new Size(121, 23);
             comboBoxCamera.TabIndex = 4;
@@ -88,7 +89,7 @@
             // label1
             // 
             label1.AutoSize = true;
-            label1.Location = new Point(334, 470);
+            label1.Location = new Point(778, 39);
             label1.Name = "label1";
             label1.Size = new Size(51, 15);
             label1.TabIndex = 5;
@@ -97,7 +98,7 @@
             // label2
             // 
             label2.AutoSize = true;
-            label2.Location = new Point(518, 470);
+            label2.Location = new Point(778, 68);
             label2.Name = "label2";
             label2.Size = new Size(67, 15);
             label2.TabIndex = 6;
@@ -106,7 +107,7 @@
             // label3
             // 
             label3.AutoSize = true;
-            label3.Location = new Point(718, 469);
+            label3.Location = new Point(778, 97);
             label3.Name = "label3";
             label3.Size = new Size(33, 15);
             label3.TabIndex = 7;
@@ -115,17 +116,27 @@
             // checkBoxFilter
             // 
             checkBoxFilter.AutoSize = true;
-            checkBoxFilter.Location = new Point(757, 470);
+            checkBoxFilter.Location = new Point(851, 98);
             checkBoxFilter.Name = "checkBoxFilter";
             checkBoxFilter.Size = new Size(15, 14);
             checkBoxFilter.TabIndex = 8;
             checkBoxFilter.UseVisualStyleBackColor = true;
             // 
+            // textBoxAcceleratorDetails
+            // 
+            textBoxAcceleratorDetails.Location = new Point(778, 118);
+            textBoxAcceleratorDetails.Multiline = true;
+            textBoxAcceleratorDetails.Name = "textBoxAcceleratorDetails";
+            textBoxAcceleratorDetails.ReadOnly = true;
+            textBoxAcceleratorDetails.Size = new Size(194, 342);
+            textBoxAcceleratorDetails.TabIndex = 9;
+            // 
             // Form1
             // 
             AutoScaleDimensions = new SizeF(7F, 15F);
             AutoScaleMode = AutoScaleMode.Font;
-            ClientSize = new Size(784, 495);
+            ClientSize = new Size(981, 469);
+            Controls.Add(textBoxAcceleratorDetails);
             Controls.Add(checkBoxFilter);
             Controls.Add(label3);
             Controls.Add(label2);
@@ -158,5 +169,6 @@
         private Label label2;
         private Label label3;
         private CheckBox checkBoxFilter;
+        private TextBox textBoxAcceleratorDetails;
     }
 }

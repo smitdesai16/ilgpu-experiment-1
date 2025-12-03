@@ -121,6 +121,7 @@
             checkBoxFilter.Size = new Size(15, 14);
             checkBoxFilter.TabIndex = 8;
             checkBoxFilter.UseVisualStyleBackColor = true;
+            checkBoxFilter.CheckedChanged += checkBoxFilter_CheckedChanged;
             // 
             // textBoxAcceleratorDetails
             // 

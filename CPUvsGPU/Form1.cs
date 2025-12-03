@@ -115,7 +115,7 @@ namespace CPUvsGPU
             {
                 selectedProcessingUnit = processingUnits[comboBoxAccelerator.SelectedIndex];
 
-                if(accelerator != null)
+                if (accelerator != null)
                 {
                     accelerator.Dispose();
                 }
@@ -164,7 +164,7 @@ Max Threads: {accelerator.NumMultiprocessors * accelerator.MaxNumThreadsPerMulti
             {
                 videoSource.SignalToStop();
                 videoSource.NewFrame -= VideoSource_NewFrame;
-                if(waitForStop)
+                if (waitForStop)
                 {
                     videoSource.WaitForStop();
                 }
@@ -241,28 +241,27 @@ Max Threads: {accelerator.NumMultiprocessors * accelerator.MaxNumThreadsPerMulti
             pixel[baseIdx + 3] = (byte)(255 - b);
         }
 
-        private void ProcessFrame(Bitmap frame)
+        static void KernelGrayPixel(Index1D index, ArrayView<byte> pixel)
         {
-            //Parallel.For(0, (frame.Width * frame.Width) - 1, new ParallelOptions() { MaxDegreeOfParallelism = 16 }, (index) =>
-            //{
-            //    int y = index / frame.Width;
-            //    int x = index % frame.Width;
-            //    Color pixelColor = frame.GetPixel(x, y);
-            //    int grayValue = (int)(pixelColor.R * 0.3 + pixelColor.G * 0.59 + pixelColor.B * 0.11);
-            //    Color grayColor = Color.FromArgb(grayValue, grayValue, grayValue);
-            //    frame.SetPixel(x, y, grayColor);
-            //});
+            int baseIdx = index * 4; // Format32bppArgb in memory is BGRA (B,G,R,A)
 
-            //for (int y = 0; y < frame.Height; y++)
-            //{
-            //    for (int x = 0; x < frame.Width; x++)
-            //    {
-            //        Color pixelColor = frame.GetPixel(x, y);
-            //        int grayValue = (int)(pixelColor.R * 0.3 + pixelColor.G * 0.59 + pixelColor.B * 0.11);
-            //        Color grayColor = Color.FromArgb(grayValue, grayValue, grayValue);
-            //        frame.SetPixel(x, y, grayColor);
-            //    }
-            //}
+            // Read in BGRA order (lowest address = Blue)
+            byte b = pixel[baseIdx + 0];
+            byte g = pixel[baseIdx + 1];
+            byte r = pixel[baseIdx + 2];
+            byte a = pixel[baseIdx + 3];
+
+            // Use standard luminance coefficients for human perception
+            float rf = (float)r;
+            float gf = (float)g;
+            float bf = (float)b;
+            byte gray = (byte)(rf * 0.299f + gf * 0.587f + bf * 0.114f + 0.5f); // +0.5f for rounding
+
+            // Write back in BGRA order, preserving alpha
+            pixel[baseIdx + 0] = gray;
+            pixel[baseIdx + 1] = gray;
+            pixel[baseIdx + 2] = gray;
+            pixel[baseIdx + 3] = a;
         }
 
         private void Form1_FormClosing(object sender, FormClosingEventArgs e)
@@ -270,6 +269,18 @@ Max Threads: {accelerator.NumMultiprocessors * accelerator.MaxNumThreadsPerMulti
             CloseExistingVideoSource(false);
             accelerator?.Dispose();
             context?.Dispose();
+        }
+
+        private void checkBoxFilter_CheckedChanged(object sender, EventArgs e)
+        {
+            if (checkBoxFilter.Checked)
+            {
+                comboBoxAccelerator.Enabled = false;
+            }
+            else
+            {
+                comboBoxAccelerator.Enabled = true;
+            }
         }
     }
 }

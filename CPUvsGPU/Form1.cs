@@ -192,7 +192,7 @@ Max Threads: {accelerator.NumMultiprocessors * accelerator.MaxNumThreadsPerMulti
                     Marshal.Copy(bmpData.Scan0, pixels, 0, byteCount);
 
                     using var devPixels = accelerator.Allocate1D(pixels);
-                    var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<byte>>(KernelInverPixel);
+                    var kernel = accelerator.LoadAutoGroupedStreamKernel<Index1D, ArrayView<byte>>(KernelGrayPixel);
                     kernel(pixelCount, devPixels.View);
                     accelerator.Synchronize();
                     pixels = devPixels.GetAsArray1D();
